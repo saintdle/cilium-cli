@@ -6,6 +6,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"github.com/cilium/cilium-cli/k8s"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -154,5 +155,14 @@ func upgradeDeployment(ctx context.Context, k *K8sInstaller, params upgradeDeplo
 	}
 
 	*patched++
+	return nil
+}
+
+func (k *K8sInstaller) UpgradeWithHelm(ctx context.Context, k8sClient *k8s.Client) error {
+	err := k.upgrade(ctx, k8sClient)
+	if err != nil {
+		return err
+	}
+	k.Log("✅ Cilium was successfully upgraded! Run 'cilium status' to view installation health")
 	return nil
 }

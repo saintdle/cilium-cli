@@ -958,3 +958,40 @@ func (k *K8sInstaller) RollbackInstallation(ctx context.Context) {
 		r(ctx)
 	}
 }
+
+func (k *K8sInstaller) InstallForReal(ctx context.Context, k8sClient *k8s.Client) error {
+	// If --list-versions flag is specified, print available versions and return.
+	if k.params.ListVersions {
+		return k.listVersions()
+	}
+	if err := k.autodetectAndValidate(ctx); err != nil {
+		return err
+	}
+
+	switch k.flavor.Kind {
+	case k8s.KindGKE:
+		if k.params.IPv4NativeRoutingCIDR == "" {
+			cidr, err := k.gkeNativeRoutingCIDR(ctx, k.client.ContextName())
+			if err != nil {
+				k.Log("❌ Unable to auto-detect GKE native routing CIDR. Is \"gcloud\" installed?")
+				k.Log("ℹ️  You can set the native routing CIDR manually with --ipv4-native-routing-cidr")
+				return err
+			}
+			k.params.IPv4NativeRoutingCIDR = cidr
+		}
+
+	case k8s.KindAKS:
+		if k.params.DatapathMode == DatapathAzure {
+			// The Azure Service Principal is only needed when using Azure IPAM
+			if err := k.azureSetupServicePrincipal(ctx); err != nil {
+				return err
+			}
+		}
+	}
+
+	err := k.install(ctx, k8sClient)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -6,6 +6,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"github.com/cilium/cilium-cli/internal/helm"
 	"io"
 	"strings"
 	"time"
@@ -45,6 +46,11 @@ func NewK8sUninstaller(client k8sInstallerImplementation, p UninstallParameters)
 
 func (k *K8sUninstaller) Log(format string, a ...interface{}) {
 	fmt.Fprintf(k.params.Writer, format+"\n", a...)
+}
+
+func (k *K8sUninstaller) UninstallForReal(ctx context.Context, k8sClient *k8s.Client) error {
+	_, err := helm.Uninstall("kube-system", k8sClient.RESTClientGetter)
+	return err
 }
 
 func (k *K8sUninstaller) Uninstall(ctx context.Context) error {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cilium/cilium-cli/k8s"
 	"io"
 	"os"
 	"reflect"
@@ -573,7 +574,7 @@ func (k *K8sHubble) genManifests(ctx context.Context, printHelmTemplate bool, pr
 		return err
 	}
 	if printHelmTemplate {
-		helm.PrintHelmTemplateCommand(k, vals, k.params.HelmChartDirectory, k.params.Namespace, ciliumVer, apiVersions)
+		helm.PrintHelmTemplateCommand(k, "template", vals, k.params.HelmChartDirectory, k.params.Namespace, ciliumVer, apiVersions)
 	}
 
 	yamlValue, err := chartutil.Values(vals).YAML()
@@ -834,4 +835,30 @@ func (k *K8sHubble) NewClusterRoleBinding(crbName string) *rbacv1.ClusterRoleBin
 	var crb rbacv1.ClusterRoleBinding
 	utils.MustUnmarshalYAML([]byte(crbFile), &crb)
 	return &crb
+}
+
+func (k *K8sHubble) EnableWithHelm(ctx context.Context, k8sClient *k8s.Client) error {
+	options := values.Options{
+		Values: []string{"hubble.relay.enabled=true", "hubble.ui.enabled=true"},
+	}
+	vals, err := helm.MergeVals(options, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, k8sClient.RESTClientGetter)
+	k.Log("✅ Hubble was successfully enabled!")
+	return nil
+}
+
+func (k *K8sHubble) DisableWithHelm(ctx context.Context, k8sClient *k8s.Client) error {
+	options := values.Options{
+		Values: []string{"hubble.relay.enabled=false", "hubble.ui.enabled=false"},
+	}
+	vals, err := helm.MergeVals(options, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, k8sClient.RESTClientGetter)
+	k.Log("✅ Hubble was successfully disabled.")
+	return nil
 }

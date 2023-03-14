@@ -74,13 +74,24 @@ cilium connectivity test`,
 		newCmdConnectivity(),
 		newCmdContext(),
 		newCmdHubble(),
-		newCmdInstall(),
 		newCmdStatus(),
 		newCmdSysdump(),
-		newCmdUninstall(),
-		newCmdUpgrade(),
 		newCmdVersion(),
 	)
+	if os.Getenv("MICHI_SUPER_SECRET_HELM_INSTALL") != "" {
+		cmd.AddCommand(
+			newCmdSuperSecretMichiInstall(),
+			newCmdSuperSecretMichiUninstall(),
+			newCmdSuperSecretMichiUpgrade(),
+		)
+	} else {
+		cmd.AddCommand(
+			newCmdInstall(),
+			newCmdUninstall(),
+			newCmdUpgrade(),
+		)
+	}
+
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 

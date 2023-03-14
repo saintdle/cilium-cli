@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"helm.sh/helm/v3/pkg/release"
 	"io/fs"
 	"os"
 	"path"
@@ -32,6 +33,7 @@ import (
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const ciliumChart = "https://helm.cilium.io"
@@ -180,6 +182,49 @@ func sliceValuesToString(prevKey string, b []interface{}) string {
 	return strings.Join(out, ",")
 }
 
+func newHelmInstaller(namespace string, k8sVersion string, apiVersions []string, k8sClient genericclioptions.RESTClientGetter) (*action.Install, error) {
+	actionConfig := action.Configuration{}
+	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) {}); err != nil {
+		return nil, err
+	}
+	helmClient := action.NewInstall(&actionConfig)
+	helmClient.DryRun = false
+	helmClient.ReleaseName = "cilium"
+	helmClient.ClientOnly = false
+	helmClient.Namespace = namespace
+	if len(apiVersions) == 0 {
+		helmClient.APIVersions = []string{k8sVersion}
+	} else {
+		helmClient.APIVersions = apiVersions
+	}
+
+	return helmClient, nil
+}
+
+func newHelmUninstaller(namespace string, k8sClient genericclioptions.RESTClientGetter) (*action.Uninstall, error) {
+	actionConfig := action.Configuration{}
+	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) { fmt.Println(format, v) }); err != nil {
+		return nil, err
+	}
+	helmClient := action.NewUninstall(&actionConfig)
+	helmClient.DryRun = false
+	return helmClient, nil
+}
+
+func newHelmUpgrader(namespace string, k8sClient genericclioptions.RESTClientGetter) (*action.Upgrade, *release.Release, error) {
+	actionConfig := action.Configuration{}
+	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) { fmt.Printf(format, v...); println() }); err != nil {
+		return nil, nil, err
+	}
+	currentRelease, err := actionConfig.Releases.Last("cilium")
+	if err != nil {
+		return nil, nil, err
+	}
+	helmClient := action.NewUpgrade(&actionConfig)
+	helmClient.Namespace = namespace
+	return helmClient, currentRelease, nil
+}
+
 func newClient(namespace string, k8sVersion string, apiVersions []string) (*action.Install, error) {
 	actionConfig := new(action.Configuration)
 	helmClient := action.NewInstall(actionConfig)
@@ -258,6 +303,114 @@ func ciliumCacheDir() (string, error) {
 	}
 
 	return res, nil
+}
+
+func Install(
+	ctx context.Context,
+	helmChartDirectory, k8sVersion string,
+	ciliumVer semver2.Version,
+	namespace string,
+	helmValues map[string]interface{},
+	apiVersions []string,
+	k8sClient genericclioptions.RESTClientGetter,
+) (*release.Release, error) {
+	var (
+		helmChart *chart.Chart
+		err       error
+	)
+	if helmDir := helmChartDirectory; helmDir != "" {
+		helmChart, err = newChartFromDirectory(helmDir)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		helmChart, err = newChartFromEmbeddedFile(ciliumVer)
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return nil, err
+			}
+			helmChart, err = newChartFromRemoteWithCache(ciliumVer)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	helmClient, err := newHelmInstaller(namespace, k8sVersion, apiVersions, k8sClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return helmClient.RunWithContext(ctx, helmChart, helmValues)
+}
+
+func Upgrade(
+	ctx context.Context,
+	helmChartDirectory string,
+	ciliumVer semver2.Version,
+	namespace string,
+	helmValues map[string]interface{},
+	k8sClient genericclioptions.RESTClientGetter,
+) (*release.Release, error) {
+	var (
+		helmChart *chart.Chart
+		err       error
+	)
+	if helmDir := helmChartDirectory; helmDir != "" {
+		helmChart, err = newChartFromDirectory(helmDir)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		helmChart, err = newChartFromEmbeddedFile(ciliumVer)
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return nil, err
+			}
+			helmChart, err = newChartFromRemoteWithCache(ciliumVer)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	helmClient, _, err := newHelmUpgrader(namespace, k8sClient)
+	if err != nil {
+		return nil, err
+	}
+	if len(helmValues) != 0 {
+		helmClient.ReuseValues = true
+	}
+
+	return helmClient.RunWithContext(ctx, "cilium", helmChart, helmValues)
+}
+
+func UpgradeCurrentRelease(
+	ctx context.Context,
+	namespace string,
+	helmValues map[string]interface{},
+	k8sClient genericclioptions.RESTClientGetter,
+) (*release.Release, error) {
+	var (
+		err error
+	)
+	helmClient, currentRelease, err := newHelmUpgrader(namespace, k8sClient)
+	if err != nil {
+		return nil, err
+	}
+	if len(helmValues) != 0 {
+		helmClient.ReuseValues = true
+	}
+
+	return helmClient.RunWithContext(ctx, "cilium", currentRelease.Chart, helmValues)
+}
+
+func Uninstall(namespace string, k8sClient genericclioptions.RESTClientGetter) (*release.UninstallReleaseResponse, error) {
+	helmClient, err := newHelmUninstaller(namespace, k8sClient)
+	if err != nil {
+		return nil, err
+	}
+	return helmClient.Run("cilium")
 }
 
 // GenManifests returns the generated manifests in a map that maps the manifest
@@ -363,6 +516,7 @@ func MergeVals(
 // If 'apiVersions' is given, said values will be added to the log message.
 func PrintHelmTemplateCommand(
 	logger utils.Logger,
+	helmCommand string,
 	helmValues map[string]any,
 	helmChartDirectory string,
 	namespace string,
@@ -377,9 +531,9 @@ func PrintHelmTemplateCommand(
 		}
 	}
 	if helmChartDirectory != "" {
-		logger.Log("ℹ️  helm template --namespace %s cilium %q --version %s --set %s%s", namespace, helmChartDirectory, ciliumVer, valsStr, apiVersionsStr)
+		logger.Log("ℹ️  helm %s --namespace %s cilium %q --version %s --set %s%s", helmCommand, namespace, helmChartDirectory, ciliumVer, valsStr, apiVersionsStr)
 	} else {
-		logger.Log("ℹ️  helm template --namespace %s cilium cilium/cilium --version %s --set %s%s", namespace, ciliumVer, valsStr, apiVersionsStr)
+		logger.Log("ℹ️  helm %s --namespace %s cilium cilium/cilium --version %s --set %s%s", helmCommand, namespace, ciliumVer, valsStr, apiVersionsStr)
 	}
 }
 

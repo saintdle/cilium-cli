@@ -20,6 +20,39 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
+func (k *K8sInstaller) install(ctx context.Context, k8sClient *k8s.Client) error {
+	vals, err := k.getHelmValues()
+	if err != nil {
+		return err
+	}
+
+	apiVersions := k.getAPIVersions(ctx)
+
+	helm.PrintHelmTemplateCommand(k, "install", vals, k.params.HelmChartDirectory, k.params.Namespace, k.chartVersion, apiVersions)
+
+	yamlValue, err := chartutil.Values(vals).YAML()
+	if err != nil {
+		return err
+	}
+
+	if k.params.HelmGenValuesFile != "" {
+		return os.WriteFile(k.params.HelmGenValuesFile, []byte(yamlValue), 0o600)
+	}
+
+	k8sVersionStr, err := k.getKubernetesVersion()
+	if err != nil {
+		return err
+	}
+
+	_, err = helm.Install(ctx, k.params.HelmChartDirectory, k8sVersionStr, k.chartVersion, k.params.Namespace, vals, apiVersions, k8sClient.RESTClientGetter)
+	return err
+}
+
+func (k *K8sInstaller) uninstall(ctx context.Context, k8sClient *k8s.Client) error {
+	_, err := helm.Uninstall("kube-system", k8sClient.RESTClientGetter)
+	return err
+}
+
 func (k *K8sInstaller) generateManifests(ctx context.Context) error {
 	vals, err := k.getHelmValues()
 	if err != nil {
@@ -28,7 +61,7 @@ func (k *K8sInstaller) generateManifests(ctx context.Context) error {
 
 	apiVersions := k.getAPIVersions(ctx)
 
-	helm.PrintHelmTemplateCommand(k, vals, k.params.HelmChartDirectory, k.params.Namespace, k.chartVersion, apiVersions)
+	helm.PrintHelmTemplateCommand(k, "template", vals, k.params.HelmChartDirectory, k.params.Namespace, k.chartVersion, apiVersions)
 
 	yamlValue, err := chartutil.Values(vals).YAML()
 	if err != nil {
@@ -339,4 +372,13 @@ func (k *K8sInstaller) getKubernetesVersion() (string, error) {
 		return "", fmt.Errorf("error getting Kubernetes version, try --k8s-version: %s", err)
 	}
 	return k8sVersion.String(), nil
+}
+
+func (k *K8sInstaller) upgrade(ctx context.Context, k8sClient *k8s.Client) error {
+	vals, err := helm.MergeVals(k.params.HelmOpts, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	_, err = helm.Upgrade(ctx, k.params.HelmChartDirectory, k.chartVersion, k.params.Namespace, vals, k8sClient.RESTClientGetter)
+	return err
 }

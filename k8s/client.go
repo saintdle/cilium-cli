@@ -55,7 +55,7 @@ type Client struct {
 	CiliumClientset  ciliumClientset.Interface
 	Config           *rest.Config
 	RawConfig        clientcmdapi.Config
-	restClientGetter genericclioptions.RESTClientGetter
+	RESTClientGetter genericclioptions.RESTClientGetter
 	contextName      string
 }
 
@@ -105,7 +105,7 @@ func NewClient(contextName, kubeconfig string) (*Client, error) {
 		Config:           config,
 		DynamicClientset: dynamicClientset,
 		RawConfig:        rawConfig,
-		restClientGetter: &restClientGetter,
+		RESTClientGetter: &restClientGetter,
 		contextName:      contextName,
 	}, nil
 }
@@ -725,7 +725,7 @@ func (c *Client) ListNamespaces(ctx context.Context, o metav1.ListOptions) (*cor
 }
 
 func (c *Client) GetPodsTable(ctx context.Context) (*metav1.Table, error) {
-	r := resource.NewBuilder(c.restClientGetter).
+	r := resource.NewBuilder(c.RESTClientGetter).
 		Unstructured().
 		AllNamespaces(true).
 		ResourceTypes("pods").
