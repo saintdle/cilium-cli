@@ -1,9 +1,9 @@
 ipam:
-  mode: kubernetes
+    mode: kubernetes
 operator:
-  replicas: 1
+    replicas: 1
 serviceAccounts:
-  cilium:
-    name: cilium
-  operator:
-    name: cilium-operator
+    cilium:
+        name: cilium
+    operator:
+        name: cilium-operator

@@ -18,6 +18,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -1758,4 +1759,138 @@ func (k *K8sClusterMesh) ExternalWorkloadStatus(ctx context.Context, names []str
 	w.Flush()
 	fmt.Println(buf.String())
 	return err
+}
+
+func (k *K8sClusterMesh) EnableWithHelm(ctx context.Context, k8sClient *k8s.Client) error {
+	config := `clustermesh:
+  useAPIServer: true
+  apiserver:
+   tls:
+     auto:
+       enabled: true
+       method: certmanager
+       certManagerIssuerRef:
+         group: cert-manager.io
+         kind: Issuer
+         name: cilium
+hubble:
+  tls:
+    auto:
+      enabled: true
+      method: certmanager
+      certManagerIssuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: cilium`
+
+	//flags := []string{"clustermesh.useAPIServer=true"}
+	var err error
+	var vals map[string]interface{}
+	//vals, err := helm.MergeVals(values.Options{Values: flags}, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	if err = yaml.Unmarshal([]byte(config), &vals); err != nil {
+		return err
+	}
+	fmt.Println("MICHI HERE", vals)
+	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, k8sClient.RESTClientGetter)
+	if err != nil {
+		return err
+	}
+	k.Log("✅ ClusterMesh enabled!")
+	return nil
+}
+
+func (k *K8sClusterMesh) DisableWithHelm(ctx context.Context) error {
+	k.Log("🔥 Deleting clustermesh-apiserver...")
+	k.client.DeleteService(ctx, k.params.Namespace, defaults.ClusterMeshServiceName, metav1.DeleteOptions{})
+	k.client.DeleteDeployment(ctx, k.params.Namespace, defaults.ClusterMeshDeploymentName, metav1.DeleteOptions{})
+	k.client.DeleteClusterRoleBinding(ctx, defaults.ClusterMeshClusterRoleName, metav1.DeleteOptions{})
+	k.client.DeleteClusterRole(ctx, defaults.ClusterMeshClusterRoleName, metav1.DeleteOptions{})
+	k.client.DeleteServiceAccount(ctx, k.params.Namespace, defaults.ClusterMeshServiceAccountName, metav1.DeleteOptions{})
+	k.client.DeleteSecret(ctx, k.params.Namespace, defaults.ClusterMeshSecretName, metav1.DeleteOptions{})
+
+	k.deleteCertificates(ctx)
+
+	k.Log("✅ ClusterMesh disabled.")
+
+	return nil
+}
+
+func (k *K8sClusterMesh) ConnectWithHelm(ctx context.Context) error {
+	remoteCluster, err := k8s.NewClient(k.params.DestinationContext, "")
+	if err != nil {
+		return fmt.Errorf("unable to create Kubernetes client to access remote cluster %q: %w", k.params.DestinationContext, err)
+	}
+
+	aiRemote, err := k.extractAccessInformation(ctx, remoteCluster, k.params.DestinationEndpoints, true, false)
+	if err != nil {
+		k.Log("❌ Unable to retrieve access information of remote cluster %q: %s", remoteCluster.ClusterName(), err)
+		return err
+	}
+
+	if !aiRemote.validate() {
+		return fmt.Errorf("remote cluster has non-unique name (%s) and/or ID (%s)", aiRemote.ClusterName, aiRemote.ClusterID)
+	}
+
+	aiLocal, err := k.extractAccessInformation(ctx, k.client, k.params.SourceEndpoints, true, false)
+	if err != nil {
+		k.Log("❌ Unable to retrieve access information of local cluster %q: %s", k.client.ClusterName(), err)
+		return err
+	}
+
+	if !aiLocal.validate() {
+		return fmt.Errorf("local cluster has the default name (cluster name: %s) and/or ID 0 (cluster ID: %s)",
+			aiLocal.ClusterName, aiLocal.ClusterID)
+	}
+
+	cid, err := strconv.Atoi(aiRemote.ClusterID)
+	if err != nil {
+		return fmt.Errorf("remote cluster has non-numeric cluster ID %s. Only numeric values 1-255 are allowed", aiRemote.ClusterID)
+	}
+	if cid < 1 || cid > 255 {
+		return fmt.Errorf("remote cluster has cluster ID %d out of acceptable range (1-255)", cid)
+	}
+
+	if aiRemote.ClusterName == aiLocal.ClusterName {
+		return fmt.Errorf("remote and local cluster have the same, non-unique name: %s", aiLocal.ClusterName)
+	}
+
+	if aiRemote.ClusterID == aiLocal.ClusterID {
+		return fmt.Errorf("remote and local cluster have the same, non-unique ID: %s", aiLocal.ClusterID)
+	}
+
+	k.Log("✨ Connecting cluster %s -> %s...", k.client.ClusterName(), remoteCluster.ClusterName())
+	if err := k.patchConfig(ctx, k.client, aiRemote); err != nil {
+		return err
+	}
+
+	k.Log("✨ Connecting cluster %s -> %s...", remoteCluster.ClusterName(), k.client.ClusterName())
+	if err := k.patchConfig(ctx, remoteCluster, aiLocal); err != nil {
+		return err
+	}
+
+	k.Log("✅ Connected cluster %s and %s!", k.client.ClusterName(), remoteCluster.ClusterName())
+
+	return nil
+}
+
+func (k *K8sClusterMesh) DisconnectWithHelm(ctx context.Context) error {
+	remoteCluster, err := k8s.NewClient(k.params.DestinationContext, "")
+	if err != nil {
+		return fmt.Errorf("unable to create Kubernetes client to access remote cluster %q: %w", k.params.DestinationContext, err)
+	}
+
+	if err := k.disconnectCluster(ctx, k.client, remoteCluster); err != nil {
+		return err
+	}
+
+	if err := k.disconnectCluster(ctx, remoteCluster, k.client); err != nil {
+		return err
+	}
+
+	k.Log("✅ Disconnected cluster %s and %s.", k.client.ClusterName(), remoteCluster.ClusterName())
+
+	return nil
 }
