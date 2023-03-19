@@ -23,7 +23,7 @@ kubectl apply --context kind-cluster2 -f https://github.com/cert-manager/cert-ma
 kubectl --context kind-cluster1 get service -n kube-system clustermesh-apiserver
 kubectl --context kind-cluster2 get service -n kube-system clustermesh-apiserver
 ./cilium clustermesh connect --context kind-cluster1 --destination-context kind-cluster2
-./cilium uninstall --context kind-cluster0
 ./cilium uninstall --context kind-cluster1
+./cilium uninstall --context kind-cluster2
 kind delete cluster -n cluster1
 kind delete cluster -n cluster2
