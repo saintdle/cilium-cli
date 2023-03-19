@@ -1789,7 +1789,6 @@ hubble:
 	if err = yaml.Unmarshal([]byte(config), &vals); err != nil {
 		return err
 	}
-	fmt.Println("MICHI HERE", vals)
 	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, k8sClient.RESTClientGetter)
 	if err != nil {
 		return err
