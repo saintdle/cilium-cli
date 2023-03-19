@@ -43,9 +43,8 @@ func (k *K8sInstaller) createHubbleServerCertificate(ctx context.Context) error 
 	}
 
 	data := map[string][]byte{
-		corev1.TLSCertKey:         cert,
-		corev1.TLSPrivateKeyKey:   key,
-		defaults.CASecretCertName: k.certManager.CACertBytes(),
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: key,
 	}
 
 	_, err = k.client.CreateSecret(ctx, k.params.Namespace, k8s.NewTLSSecret(defaults.HubbleServerSecretName, k.params.Namespace, data), metav1.CreateOptions{})

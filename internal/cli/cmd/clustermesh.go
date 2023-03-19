@@ -406,7 +406,7 @@ func newCmdMichiSuperSecretClusterMeshConnect() *cobra.Command {
 			params.Namespace = namespace
 
 			cm := clustermesh.NewK8sClusterMesh(k8sClient, params)
-			if err := cm.ConnectWithHelm(context.Background()); err != nil {
+			if err := cm.ConnectWithHelm(context.Background(), k8sClient); err != nil {
 				fatalf("Unable to connect cluster: %s", err)
 			}
 			return nil

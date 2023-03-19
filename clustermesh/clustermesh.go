@@ -1818,7 +1818,7 @@ func (k *K8sClusterMesh) DisableWithHelm(ctx context.Context) error {
 	return nil
 }
 
-func (k *K8sClusterMesh) ConnectWithHelm(ctx context.Context) error {
+func (k *K8sClusterMesh) ConnectWithHelm(ctx context.Context, k8sClient *k8s.Client) error {
 	remoteCluster, err := k8s.NewClient(k.params.DestinationContext, "")
 	if err != nil {
 		return fmt.Errorf("unable to create Kubernetes client to access remote cluster %q: %w", k.params.DestinationContext, err)
@@ -1860,21 +1860,74 @@ func (k *K8sClusterMesh) ConnectWithHelm(ctx context.Context) error {
 	if aiRemote.ClusterID == aiLocal.ClusterID {
 		return fmt.Errorf("remote and local cluster have the same, non-unique ID: %s", aiLocal.ClusterID)
 	}
-
-	k.Log("✨ Connecting cluster %s -> %s...", k.client.ClusterName(), remoteCluster.ClusterName())
-	if err := k.patchConfig(ctx, k.client, aiRemote); err != nil {
+	local := Cluster{
+		Name: aiLocal.ClusterName,
+		Port: aiLocal.ServicePort,
+		IPs:  aiLocal.ServiceIPs,
+	}
+	remote := Cluster{
+		Name: aiRemote.ClusterName,
+		Port: aiRemote.ServicePort,
+		IPs:  aiRemote.ServiceIPs,
+	}
+	cmConfig := TopLevel{
+		ClusterMesh: ClusterMesh{
+			Config: Config{
+				Enabled:  true,
+				Clusters: []Cluster{local, remote},
+			},
+		},
+	}
+	yamlout, err := yaml.Marshal(cmConfig)
+	fmt.Println(string(yamlout))
+	var vals map[string]interface{}
+	if err = yaml.Unmarshal(yamlout, &vals); err != nil {
 		return err
 	}
-
-	k.Log("✨ Connecting cluster %s -> %s...", remoteCluster.ClusterName(), k.client.ClusterName())
-	if err := k.patchConfig(ctx, remoteCluster, aiLocal); err != nil {
+	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, k8sClient.RESTClientGetter)
+	if err != nil {
 		return err
 	}
-
+	_, err = helm.UpgradeCurrentRelease(ctx, k.params.Namespace, vals, remoteCluster.RESTClientGetter)
+	if err != nil {
+		return err
+	}
 	k.Log("✅ Connected cluster %s and %s!", k.client.ClusterName(), remoteCluster.ClusterName())
-
 	return nil
 }
+
+type TopLevel struct {
+	ClusterMesh ClusterMesh
+}
+type ClusterMesh struct {
+	Config Config
+}
+
+type Config struct {
+	Enabled  bool
+	Clusters []Cluster
+}
+type Cluster struct {
+	Name string
+	Port int
+	IPs  []string
+}
+
+/*
+clustermesh:
+  config:
+    enabled: true
+    clusters:
+    - name: kind-cluster-0
+      ips:
+      - 10.243.33.166
+      port: 2379
+    - name: kind-cluster-1
+      ips:
+      - 10.245.208.9
+      port: 2379
+
+*/
 
 func (k *K8sClusterMesh) DisconnectWithHelm(ctx context.Context) error {
 	remoteCluster, err := k8s.NewClient(k.params.DestinationContext, "")

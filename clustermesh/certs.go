@@ -46,9 +46,8 @@ func (k *K8sClusterMesh) createClusterMeshServerCertificate(ctx context.Context)
 	}
 
 	data := map[string][]byte{
-		corev1.TLSCertKey:         cert,
-		corev1.TLSPrivateKeyKey:   key,
-		defaults.CASecretCertName: k.certManager.CACertBytes(),
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: key,
 	}
 
 	_, err = k.client.CreateSecret(ctx, k.params.Namespace, k8s.NewTLSSecret(defaults.ClusterMeshServerSecretName, k.params.Namespace, data), metav1.CreateOptions{})
@@ -86,9 +85,8 @@ func (k *K8sClusterMesh) createClusterMeshAdminCertificate(ctx context.Context) 
 	}
 
 	data := map[string][]byte{
-		corev1.TLSCertKey:         cert,
-		corev1.TLSPrivateKeyKey:   key,
-		defaults.CASecretCertName: k.certManager.CACertBytes(),
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: key,
 	}
 
 	_, err = k.client.CreateSecret(ctx, k.params.Namespace, k8s.NewTLSSecret(defaults.ClusterMeshAdminSecretName, k.params.Namespace, data), metav1.CreateOptions{})
@@ -123,9 +121,8 @@ func (k *K8sClusterMesh) createClusterMeshClientCertificate(ctx context.Context)
 	}
 
 	data := map[string][]byte{
-		corev1.TLSCertKey:         cert,
-		corev1.TLSPrivateKeyKey:   key,
-		defaults.CASecretCertName: k.certManager.CACertBytes(),
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: key,
 	}
 
 	_, err = k.client.CreateSecret(ctx, k.params.Namespace, k8s.NewTLSSecret(defaults.ClusterMeshClientSecretName, k.params.Namespace, data), metav1.CreateOptions{})
@@ -160,9 +157,8 @@ func (k *K8sClusterMesh) createClusterMeshExternalWorkloadCertificate(ctx contex
 	}
 
 	data := map[string][]byte{
-		corev1.TLSCertKey:         cert,
-		corev1.TLSPrivateKeyKey:   key,
-		defaults.CASecretCertName: k.certManager.CACertBytes(),
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: key,
 	}
 
 	_, err = k.client.CreateSecret(ctx, k.params.Namespace, k8s.NewTLSSecret(defaults.ClusterMeshExternalWorkloadSecretName, k.params.Namespace, data), metav1.CreateOptions{})

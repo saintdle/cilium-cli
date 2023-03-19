@@ -17,8 +17,8 @@ const (
 	AgentImage              = "quay.io/cilium/cilium"
 
 	CASecretName     = "cilium-ca"
-	CASecretKeyName  = "ca.key"
-	CASecretCertName = "ca.crt"
+	CASecretKeyName  = "tls.key"
+	CASecretCertName = "tls.crt"
 
 	EncryptionSecretName = "cilium-ipsec-keys"
 	AKSSecretName        = "cilium-azure"
@@ -62,7 +62,7 @@ const (
 	ClusterMeshSecretName                 = "cilium-clustermesh" // Secret which contains the clustermesh configuration
 	ClusterMeshServerSecretName           = "clustermesh-apiserver-server-cert"
 	ClusterMeshAdminSecretName            = "clustermesh-apiserver-admin-cert"
-	ClusterMeshClientSecretName           = "clustermesh-apiserver-client-cert"
+	ClusterMeshClientSecretName           = "clustermesh-apiserver-remote-cert"
 	ClusterMeshExternalWorkloadSecretName = "clustermesh-apiserver-external-workload-cert"
 
 	ConnectivityCheckNamespace = "cilium-test"

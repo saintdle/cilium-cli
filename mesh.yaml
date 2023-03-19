@@ -1,0 +1,12 @@
+clustermesh:
+  config:
+    enabled: true
+    clusters:
+    - name: kind-cluster-0
+      ips:
+      - 10.243.33.166
+      port: 2379
+    - name: kind-cluster-1
+      ips:
+      - 10.245.208.9
+      port: 2379
