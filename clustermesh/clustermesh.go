@@ -110,9 +110,6 @@ func (k *K8sClusterMesh) generateService() (*corev1.Service, error) {
 	}
 
 	if k.params.ServiceType != "" {
-		if k.params.ServiceType == "NodePort" {
-			k.Log("⚠️  Using service type NodePort may fail when nodes are removed from the cluster!")
-		}
 		svc.Spec.Type = corev1.ServiceType(k.params.ServiceType)
 	} else {
 		switch k.flavor.Kind {
@@ -855,7 +852,6 @@ func (k *K8sClusterMesh) extractAccessInformation(ctx context.Context, client k8
 				break
 			}
 		}
-		k.Log("⚠️  Service type NodePort detected! Service may fail when nodes are removed from the cluster!")
 
 	case svc.Spec.Type == corev1.ServiceTypeLoadBalancer:
 		if len(svc.Spec.Ports) == 0 {
