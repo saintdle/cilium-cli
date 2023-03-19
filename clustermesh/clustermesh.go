@@ -1874,7 +1874,6 @@ func (k *K8sClusterMesh) ConnectWithHelm(ctx context.Context, k8sClient *k8s.Cli
 		},
 	}
 	yamlout, err := yaml.Marshal(cmConfig)
-	fmt.Println(string(yamlout))
 	var vals map[string]interface{}
 	if err = yaml.Unmarshal(yamlout, &vals); err != nil {
 		return err
