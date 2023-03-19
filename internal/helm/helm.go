@@ -203,7 +203,7 @@ func newHelmInstaller(namespace string, k8sVersion string, apiVersions []string,
 
 func newHelmUninstaller(namespace string, k8sClient genericclioptions.RESTClientGetter) (*action.Uninstall, error) {
 	actionConfig := action.Configuration{}
-	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) { fmt.Println(format, v) }); err != nil {
+	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) {}); err != nil {
 		return nil, err
 	}
 	helmClient := action.NewUninstall(&actionConfig)
@@ -213,7 +213,7 @@ func newHelmUninstaller(namespace string, k8sClient genericclioptions.RESTClient
 
 func newHelmUpgrader(namespace string, k8sClient genericclioptions.RESTClientGetter) (*action.Upgrade, *release.Release, error) {
 	actionConfig := action.Configuration{}
-	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) { fmt.Printf(format, v...); println() }); err != nil {
+	if err := actionConfig.Init(k8sClient, namespace, "", func(format string, v ...interface{}) {}); err != nil {
 		return nil, nil, err
 	}
 	currentRelease, err := actionConfig.Releases.Last("cilium")

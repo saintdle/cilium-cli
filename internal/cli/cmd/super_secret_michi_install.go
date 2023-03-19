@@ -15,7 +15,6 @@ import (
 
 	"github.com/cilium/cilium-cli/connectivity/check"
 	"github.com/cilium/cilium-cli/defaults"
-	"github.com/cilium/cilium-cli/hubble"
 	"github.com/cilium/cilium-cli/install"
 )
 
@@ -157,20 +156,6 @@ func newCmdSuperSecretMichiUninstall() *cobra.Command {
 				fmt.Printf("⚠ ️ Failed to initialize connectivity test uninstaller: %s", err)
 			} else {
 				cc.UninstallResources(ctx, params.Wait)
-			}
-
-			h, err := hubble.NewK8sHubble(ctx,
-				k8sClient, hubble.Parameters{
-					Namespace:            params.Namespace,
-					HelmValuesSecretName: params.HelmValuesSecretName,
-					RedactHelmCertKeys:   params.RedactHelmCertKeys,
-					Writer:               params.Writer,
-					HelmChartDirectory:   params.HelmChartDirectory,
-				})
-			if err != nil {
-				fmt.Printf("⚠ ️ Failed to initialize Hubble uninstaller: %s", err)
-			} else if h.Disable(ctx, true) != nil {
-				fmt.Printf("ℹ️  Failed to disable Hubble. This is expected if Hubble is not enabled: %s", err)
 			}
 			uninstaller := install.NewK8sUninstaller(k8sClient, params)
 			if err := uninstaller.UninstallForReal(context.Background(), k8sClient); err != nil {
