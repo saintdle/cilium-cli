@@ -1,0 +1,21 @@
+hubble:
+  tls:
+    enabled: true
+    auto:
+      enabled: true
+      method: certmanager
+      certManagerIssuerRef:
+        group: cert-manager.io
+        kind: Issuer # ClusterIssuer
+        name: cilium
+
+clustermesh:
+  apiserver:
+    tls:
+      auto:
+        enabled: true
+        method: certmanager
+        certManagerIssuerRef:
+          group: cert-manager.io
+          kind: Issuer # ClusterIssuer
+          name: cilium
