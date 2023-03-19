@@ -1,5 +1,5 @@
-kind create cluster --config kind-config-0.yaml --name cluster1
-kind create cluster --config kind-config-1.yaml --name cluster2
+kind create cluster --config kind-config-1.yaml --name cluster1
+kind create cluster --config kind-config-2.yaml --name cluster2
 
 kubectl --context kind-cluster1 apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.crds.yaml
 kubectl --context kind-cluster2 apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.crds.yaml
