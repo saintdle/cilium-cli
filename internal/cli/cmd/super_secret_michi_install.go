@@ -23,7 +23,7 @@ func newCmdSuperSecretMichiInstall() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "EXPERIMENTAL: Install Cilium in a Kubernetes cluster using Helm",
+		Short: "✨ Install Cilium in a Kubernetes cluster using Helm",
 		Long: `Install Cilium in a Kubernetes cluster
 
 Examples:
@@ -140,7 +140,7 @@ func newCmdSuperSecretMichiUninstall() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "uninstall",
-		Short: "EXPERIMENTAL: Uninstall Cilium using Helm",
+		Short: "✨ Uninstall Cilium using Helm",
 		Long:  ``,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			params.Namespace = namespace
@@ -179,7 +179,7 @@ func newCmdSuperSecretMichiUpgrade() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "upgrade",
-		Short: "EXPERIMENTAL: Upgrade Cilium in a Kubernetes cluster using Helm",
+		Short: "✨ Upgrade Cilium in a Kubernetes cluster using Helm",
 		Long: fmt.Sprintf(`Upgrade Cilium in a Kubernetes cluster
 
 Examples:

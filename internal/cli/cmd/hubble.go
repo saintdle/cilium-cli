@@ -25,6 +25,7 @@ func newCmdHubble() *cobra.Command {
 		newCmdUI(),
 	)
 	if os.Getenv("MICHI_SUPER_SECRET_HELM_INSTALL") != "" {
+		cmd.Short = "✨ Hubble observability using Helm"
 		cmd.AddCommand(
 			newCmdMichiSuperSecretHubbleEnable(),
 			newCmdMichiSuperSecretHubbleDisable(),

@@ -29,6 +29,7 @@ func newCmdClusterMesh() *cobra.Command {
 		newCmdClusterMeshExternalWorkload(),
 	)
 	if os.Getenv("MICHI_SUPER_SECRET_HELM_INSTALL") != "" {
+		cmd.Short = "✨ Multi Cluster Management using Helm"
 		cmd.AddCommand(
 			newCmdMichiSuperSecretClusterMeshEnable(),
 			newCmdMichiSuperSecretClusterMeshDisable(),
