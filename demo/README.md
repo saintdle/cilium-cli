@@ -16,8 +16,8 @@ kubectl --context kind-cluster2 -n kube-system create secret tls cilium-ca --cer
 kubectl apply --context kind-cluster1 -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.yaml
 kubectl apply --context kind-cluster2 -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.yaml
 
-./cilium --context kind-cluster1 clustermesh status
-./cilium --context kind-cluster2 clustermesh status
+./cilium --context kind-cluster1 clustermesh status --wait
+./cilium --context kind-cluster2 clustermesh status --wait
 ./cilium --context kind-cluster1 clustermesh enable
 ./cilium --context kind-cluster2 clustermesh enable
 kubectl --context kind-cluster1 get service -n kube-system clustermesh-apiserver
