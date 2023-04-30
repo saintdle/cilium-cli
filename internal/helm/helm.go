@@ -38,7 +38,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-const ciliumChart = "https://helm.cilium.io"
+const ciliumChart = "oci://quay.io/cilium-charts-dev/cilium"
 
 var settings = cli.New()
 
@@ -218,6 +218,7 @@ func newChartFromDirectory(directory string) (*chart.Chart, error) {
 // newChartFromRemoteWithCache fetches the chart from remote repository, the chart file
 // is then stored in the local cache directory for future usage.
 func newChartFromRemoteWithCache(ciliumVersion semver2.Version) (*chart.Chart, error) {
+	fmt.Println(ciliumVersion.Pre)
 	cacheDir, err := ciliumCacheDir()
 	if err != nil {
 		return nil, err
@@ -229,14 +230,13 @@ func newChartFromRemoteWithCache(ciliumVersion semver2.Version) (*chart.Chart, e
 			return nil, err
 		}
 
-		// Download the chart from remote repository
 		pull := action.NewPullWithOpts(action.WithConfig(new(action.Configuration)))
 		pull.Settings = settings
 		pull.RepoURL = ciliumChart
 		pull.Version = ciliumVersion.String()
 		pull.DestDir = cacheDir
 
-		if _, err = pull.Run("cilium"); err != nil {
+		if _, err = pull.Run(ciliumChart); err != nil {
 			return nil, err
 		}
 	}
@@ -450,7 +450,8 @@ func resolveChartVersion(versionFlag string) (semver2.Version, *chart.Chart, err
 		return semver2.Version{}, nil, err
 	}
 
-	helmChart, err = newChartFromRemoteWithCache(version)
+	michi := semver2.MustParse(versionFlag)
+	helmChart, err = newChartFromRemoteWithCache(michi)
 	if err != nil {
 		return semver2.Version{}, nil, err
 	}
