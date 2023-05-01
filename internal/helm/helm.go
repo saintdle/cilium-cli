@@ -38,8 +38,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-const ciliumChart = "https://helm.cilium.io"
-
 var settings = cli.New()
 
 // State contains Helm state for the current Cilium installation. Cilium CLI retrieves this
@@ -217,7 +215,7 @@ func newChartFromDirectory(directory string) (*chart.Chart, error) {
 
 // newChartFromRemoteWithCache fetches the chart from remote repository, the chart file
 // is then stored in the local cache directory for future usage.
-func newChartFromRemoteWithCache(ciliumVersion semver2.Version) (*chart.Chart, error) {
+func newChartFromRemoteWithCache(ciliumVersion semver2.Version, registry string) (*chart.Chart, error) {
 	cacheDir, err := ciliumCacheDir()
 	if err != nil {
 		return nil, err
@@ -232,7 +230,7 @@ func newChartFromRemoteWithCache(ciliumVersion semver2.Version) (*chart.Chart, e
 		// Download the chart from remote repository
 		pull := action.NewPullWithOpts(action.WithConfig(new(action.Configuration)))
 		pull.Settings = settings
-		pull.RepoURL = ciliumChart
+		pull.RepoURL = registry
 		pull.Version = ciliumVersion.String()
 		pull.DestDir = cacheDir
 
@@ -289,7 +287,8 @@ func GenManifests(
 			if !errors.Is(err, fs.ErrNotExist) {
 				return nil, err
 			}
-			helmChart, err = newChartFromRemoteWithCache(ciliumVer)
+			// Helm registry is not configurable in the classic mode. Always use the default Helm registry.
+			helmChart, err = newChartFromRemoteWithCache(ciliumVer, defaults.HelmRegistry)
 			if err != nil {
 				return nil, err
 			}
@@ -421,10 +420,14 @@ func ListVersions() ([]string, error) {
 }
 
 // ResolveHelmChartVersion resolves Helm chart version based on --version and --chart-directory flags.
-func ResolveHelmChartVersion(versionFlag, chartDirectoryFlag string) (semver2.Version, *chart.Chart, error) {
+func ResolveHelmChartVersion(versionFlag, chartDirectoryFlag, registry string) (semver2.Version, *chart.Chart, error) {
+	// If registry is empty, set it to the default Helm registry ("https://helm.cilium.io") for backward compatibility.
+	if registry == "" {
+		registry = defaults.HelmRegistry
+	}
 	if chartDirectoryFlag == "" {
 		// If --chart-directory flag is not specified, use the version specified with --version flag.
-		return resolveChartVersion(versionFlag)
+		return resolveChartVersion(versionFlag, registry)
 	}
 
 	// Get the chart version from the local Helm chart specified with --chart-directory flag.
@@ -435,22 +438,25 @@ func ResolveHelmChartVersion(versionFlag, chartDirectoryFlag string) (semver2.Ve
 	return versioncheck.MustVersion(localChart.Metadata.Version), localChart, nil
 }
 
-func resolveChartVersion(versionFlag string) (semver2.Version, *chart.Chart, error) {
+func resolveChartVersion(versionFlag string, registry string) (semver2.Version, *chart.Chart, error) {
 	version, err := utils.ParseCiliumVersion(versionFlag)
 	if err != nil {
 		return semver2.Version{}, nil, err
 	}
 
-	helmChart, err := newChartFromEmbeddedFile(version)
-	if err == nil {
-		return version, helmChart, nil
+	// If the registry is the default registry ("https://helm.cilium.io"), check embedded charts first.
+	if registry == defaults.HelmRegistry {
+		helmChart, err := newChartFromEmbeddedFile(version)
+		if err == nil {
+			return version, helmChart, nil
+		}
+
+		if !errors.Is(err, fs.ErrNotExist) {
+			return semver2.Version{}, nil, err
+		}
 	}
 
-	if !errors.Is(err, fs.ErrNotExist) {
-		return semver2.Version{}, nil, err
-	}
-
-	helmChart, err = newChartFromRemoteWithCache(version)
+	helmChart, err := newChartFromRemoteWithCache(version, registry)
 	if err != nil {
 		return semver2.Version{}, nil, err
 	}
