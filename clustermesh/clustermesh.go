@@ -1653,7 +1653,7 @@ func (k *K8sClusterMesh) WriteExternalWorkloadInstallScript(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		ciliumVer, err = utils.ParseCiliumVersion(v)
+		ciliumVer, err = semver.ParseTolerant(v)
 		if err != nil {
 			return fmt.Errorf("failed to parse Cilium version %s: %w", v, err)
 		}

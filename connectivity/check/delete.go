@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/blang/semver/v4"
 	"golang.org/x/exp/slices"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli/values"
@@ -183,7 +184,7 @@ func (ct *ConnectivityTest) generateDefaultHelmState(ctx context.Context, client
 	if version == "" || err != nil {
 		return nil, fmt.Errorf("unable to obtain cilium version, no Cilium pods found in namespace %q", namespace)
 	}
-	semVer, err := utils.ParseCiliumVersion(version)
+	semVer, err := semver.ParseTolerant(version)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cilium version %s: %w", version, err)
 	}

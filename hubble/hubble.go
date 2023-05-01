@@ -166,7 +166,7 @@ func (k *K8sHubble) generateDefaultHelmState(ctx context.Context, client k8sHubb
 	if version == "" || err != nil {
 		return nil, fmt.Errorf("unable to obtain cilium version, no cilium pods found in namespace %q", namespace)
 	}
-	semVer, err := utils.ParseCiliumVersion(version)
+	semVer, err := semver.ParseTolerant(version)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cilium version %s: %w", version, err)
 	}

@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver/v4"
-	"github.com/cilium/cilium/pkg/versioncheck"
-
 	"github.com/cilium/cilium-cli/defaults"
 )
 
@@ -23,11 +20,6 @@ func CheckVersion(version string) error {
 		return fmt.Errorf("invalid syntax %q for image tag", version)
 	}
 	return nil
-}
-
-func ParseCiliumVersion(version string) (semver.Version, error) {
-	ersion := strings.TrimPrefix(version, "v")
-	return versioncheck.Version(ersion)
 }
 
 type ImagePathMode int

@@ -439,7 +439,7 @@ func ResolveHelmChartVersion(versionFlag, chartDirectoryFlag, registry string) (
 }
 
 func resolveChartVersion(versionFlag string, registry string) (semver2.Version, *chart.Chart, error) {
-	version, err := utils.ParseCiliumVersion(versionFlag)
+	version, err := semver2.ParseTolerant(versionFlag)
 	if err != nil {
 		return semver2.Version{}, nil, err
 	}
