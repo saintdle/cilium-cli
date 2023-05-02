@@ -31,6 +31,7 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/cli/values"
 	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/strvals"
@@ -215,7 +216,7 @@ func newChartFromDirectory(directory string) (*chart.Chart, error) {
 
 // newChartFromRemoteWithCache fetches the chart from remote repository, the chart file
 // is then stored in the local cache directory for future usage.
-func newChartFromRemoteWithCache(ciliumVersion semver2.Version, registry string) (*chart.Chart, error) {
+func newChartFromRemoteWithCache(ciliumVersion semver2.Version, helmRegistry string) (*chart.Chart, error) {
 	cacheDir, err := ciliumCacheDir()
 	if err != nil {
 		return nil, err
@@ -228,13 +229,29 @@ func newChartFromRemoteWithCache(ciliumVersion semver2.Version, registry string)
 		}
 
 		// Download the chart from remote repository
-		pull := action.NewPullWithOpts(action.WithConfig(new(action.Configuration)))
+		registryClient, err := registry.NewClient(
+			registry.ClientOptDebug(true),
+			registry.ClientOptEnableCache(true),
+			registry.ClientOptWriter(os.Stderr),
+			registry.ClientOptCredentialsFile(settings.RegistryConfig),
+		)
+		if err != nil {
+			return nil, err
+		}
+		actionConfig := new(action.Configuration)
+		actionConfig.RegistryClient = registryClient
+		pull := action.NewPullWithOpts(action.WithConfig(actionConfig))
 		pull.Settings = settings
-		pull.RepoURL = registry
 		pull.Version = ciliumVersion.String()
 		pull.DestDir = cacheDir
-
-		if _, err = pull.Run("cilium"); err != nil {
+		chartRef := "cilium"
+		if strings.HasPrefix(helmRegistry, "oci://") {
+			chartRef = helmRegistry
+		} else {
+			pull.RepoURL = helmRegistry
+		}
+		fmt.Println(pull.RepoURL, pull.Version, chartRef)
+		if _, err = pull.Run(chartRef); err != nil {
 			return nil, err
 		}
 	}
