@@ -12,6 +12,7 @@ import (
 
 	"github.com/cilium/cilium-cli/cli"
 	_ "github.com/cilium/cilium-cli/internal/logging" // necessary to disable unwanted cfssl log messages
+	"github.com/cilium/cilium/cli/hooks"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 		log.Printf("Unable to start gops: %s", err)
 	}
 
-	if err := cli.NewDefaultCiliumCommand().Execute(); err != nil {
+	if err := cli.NewCiliumCommand(&hooks.ExtraTestsHooks{}).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
